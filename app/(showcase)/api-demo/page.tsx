@@ -99,7 +99,7 @@ export default function ApiDemoPage() {
               { method: "PUT", path: "/api/v1/items/:id" },
               { method: "DELETE", path: "/api/v1/items/:id" },
             ].map(({ method, path }) => (
-              <div key={path} className="flex items-center gap-3">
+              <div key={`${method}-${path}`} className="flex items-center gap-3">
                 <Badge
                   variant={method === "GET" ? "secondary" : method === "POST" ? "default" : "outline"}
                   className="w-16 justify-center text-xs"
