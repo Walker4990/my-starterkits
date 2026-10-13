@@ -32,10 +32,11 @@ class ItemRepository:
             self._db.table("items")
             .select("*")
             .eq("id", item_id)
-            .single()
+            .maybe_single()
             .execute()
         )
-        if not response.data:
+        # maybe_single은 0행이면 응답 자체가 None
+        if response is None or not response.data:
             return None
         return Item(**response.data)
 
@@ -43,14 +44,9 @@ class ItemRepository:
         payload = data.model_dump()
         if owner_id:
             payload["owner_id"] = owner_id
-        response = (
-            self._db.table("items")
-            .insert(payload)
-            .select()
-            .single()
-            .execute()
-        )
-        return Item(**response.data)
+        # insert는 기본적으로 생성된 행을 반환한다 (select/single 체인 없음)
+        response = self._db.table("items").insert(payload).execute()
+        return Item(**response.data[0])
 
     def update(self, item_id: str, data: ItemUpdate) -> Optional[Item]:
         payload = {k: v for k, v in data.model_dump().items() if v is not None}
@@ -58,13 +54,11 @@ class ItemRepository:
             self._db.table("items")
             .update(payload)
             .eq("id", item_id)
-            .select()
-            .single()
             .execute()
         )
         if not response.data:
             return None
-        return Item(**response.data)
+        return Item(**response.data[0])
 
     def delete(self, item_id: str) -> bool:
         response = (

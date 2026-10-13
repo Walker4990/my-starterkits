@@ -24,22 +24,19 @@ class UserRepository:
             self._db.table("profiles")
             .select("*")
             .eq("id", user_id)
-            .single()
+            .maybe_single()
             .execute()
         )
-        if not response.data:
+        # maybe_single은 0행이면 응답 자체가 None
+        if response is None or not response.data:
             return None
         return User(**response.data)
 
-    def create(self, data: UserCreate) -> User:
-        response = (
-            self._db.table("profiles")
-            .insert(data.model_dump())
-            .select()
-            .single()
-            .execute()
-        )
-        return User(**response.data)
+    def create(self, data: UserCreate, user_id: str) -> User:
+        # profiles.id는 auth.users와 연결되므로 인증된 유저의 id로만 생성한다
+        payload = {**data.model_dump(), "id": user_id}
+        response = self._db.table("profiles").insert(payload).execute()
+        return User(**response.data[0])
 
     def update(self, user_id: str, data: UserUpdate) -> Optional[User]:
         payload = {k: v for k, v in data.model_dump().items() if v is not None}
@@ -47,13 +44,11 @@ class UserRepository:
             self._db.table("profiles")
             .update(payload)
             .eq("id", user_id)
-            .select()
-            .single()
             .execute()
         )
         if not response.data:
             return None
-        return User(**response.data)
+        return User(**response.data[0])
 
     def delete(self, user_id: str) -> bool:
         response = (
