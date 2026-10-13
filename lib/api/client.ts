@@ -10,10 +10,7 @@ type FetchOptions = Omit<RequestInit, "body"> & {
   body?: unknown
 }
 
-async function request<T>(
-  path: string,
-  options: FetchOptions = {}
-): Promise<ApiResponse<T>> {
+async function send(path: string, options: FetchOptions = {}): Promise<Response> {
   const requestId = generateRequestId()
   const { body, ...rest } = options
 
@@ -43,6 +40,14 @@ async function request<T>(
     throw error
   }
 
+  return response
+}
+
+async function request<T>(
+  path: string,
+  options: FetchOptions = {}
+): Promise<ApiResponse<T>> {
+  const response = await send(path, options)
   return response.json() as Promise<ApiResponse<T>>
 }
 
@@ -56,6 +61,8 @@ export const apiClient = {
   put: <T>(path: string, body: unknown, options?: FetchOptions) =>
     request<T>(path, { ...options, method: "PUT", body }),
 
-  delete: <T>(path: string, options?: FetchOptions) =>
-    request<T>(path, { ...options, method: "DELETE" }),
+  // 백엔드 DELETE는 204 No Content라 본문을 파싱하지 않는다
+  delete: async (path: string, options?: FetchOptions): Promise<void> => {
+    await send(path, { ...options, method: "DELETE" })
+  },
 }

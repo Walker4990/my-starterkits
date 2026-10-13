@@ -37,9 +37,11 @@ export async function findItemById(id: string): Promise<Item | null> {
     .from("items")
     .select("*")
     .eq("id", id)
-    .single()
+    .maybeSingle()
 
-  if (error) return null
+  // 행이 없는 경우만 null, 네트워크·권한 오류 등은 호출자에게 전달한다
+  if (error) throw error
+  if (!data) return null
   return toItem(data as DbItem)
 }
 
