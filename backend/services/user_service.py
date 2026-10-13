@@ -20,10 +20,19 @@ class UserService:
             )
         return user
 
-    def create_user(self, data: UserCreate) -> User:
-        return self._repo.create(data)
+    @staticmethod
+    def _ensure_self(user_id: str, current_user_id: str) -> None:
+        if user_id != current_user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"message": "본인 정보만 변경할 수 있습니다.", "code": "FORBIDDEN"},
+            )
 
-    def update_user(self, user_id: str, data: UserUpdate) -> User:
+    def create_user(self, data: UserCreate, user_id: str) -> User:
+        return self._repo.create(data, user_id=user_id)
+
+    def update_user(self, user_id: str, data: UserUpdate, current_user_id: str) -> User:
+        self._ensure_self(user_id, current_user_id)
         user = self._repo.update(user_id, data)
         if not user:
             raise HTTPException(
@@ -32,7 +41,8 @@ class UserService:
             )
         return user
 
-    def delete_user(self, user_id: str) -> None:
+    def delete_user(self, user_id: str, current_user_id: str) -> None:
+        self._ensure_self(user_id, current_user_id)
         deleted = self._repo.delete(user_id)
         if not deleted:
             raise HTTPException(

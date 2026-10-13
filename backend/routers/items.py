@@ -6,6 +6,7 @@ from backend.models.common import ApiResponse, PaginatedResponse
 from backend.repositories.item_repository import ItemRepository
 from backend.services.item_service import ItemService
 from backend.database.supabase import get_supabase
+from backend.dependencies.auth import CurrentUser, get_current_user
 
 router = APIRouter(prefix="/api/v1/items", tags=["items"])
 
@@ -48,9 +49,10 @@ async def get_item(
 async def create_item(
     body: ItemCreate,
     request: Request,
+    user: CurrentUser = Depends(get_current_user),
     service: ItemService = Depends(get_service),
 ):
-    item = service.create_item(body)
+    item = service.create_item(body, owner_id=user.id)
     return ApiResponse(data=item, request_id=request.state.request_id)
 
 
@@ -59,15 +61,17 @@ async def update_item(
     item_id: str,
     body: ItemUpdate,
     request: Request,
+    user: CurrentUser = Depends(get_current_user),
     service: ItemService = Depends(get_service),
 ):
-    item = service.update_item(item_id, body)
+    item = service.update_item(item_id, body, user_id=user.id)
     return ApiResponse(data=item, request_id=request.state.request_id)
 
 
 @router.delete("/{item_id}", status_code=204)
 async def delete_item(
     item_id: str,
+    user: CurrentUser = Depends(get_current_user),
     service: ItemService = Depends(get_service),
 ):
-    service.delete_item(item_id)
+    service.delete_item(item_id, user_id=user.id)

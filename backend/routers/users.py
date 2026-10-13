@@ -5,6 +5,7 @@ from backend.models.common import ApiResponse, PaginatedResponse
 from backend.repositories.user_repository import UserRepository
 from backend.services.user_service import UserService
 from backend.database.supabase import get_supabase
+from backend.dependencies.auth import CurrentUser, get_current_user
 
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
 
@@ -45,9 +46,10 @@ async def get_user(
 async def create_user(
     body: UserCreate,
     request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
     service: UserService = Depends(get_service),
 ):
-    user = service.create_user(body)
+    user = service.create_user(body, user_id=current_user.id)
     return ApiResponse(data=user, request_id=request.state.request_id)
 
 
@@ -56,15 +58,17 @@ async def update_user(
     user_id: str,
     body: UserUpdate,
     request: Request,
+    current_user: CurrentUser = Depends(get_current_user),
     service: UserService = Depends(get_service),
 ):
-    user = service.update_user(user_id, body)
+    user = service.update_user(user_id, body, current_user_id=current_user.id)
     return ApiResponse(data=user, request_id=request.state.request_id)
 
 
 @router.delete("/{user_id}", status_code=204)
 async def delete_user(
     user_id: str,
+    current_user: CurrentUser = Depends(get_current_user),
     service: UserService = Depends(get_service),
 ):
-    service.delete_user(user_id)
+    service.delete_user(user_id, current_user_id=current_user.id)
