@@ -11,14 +11,29 @@ function projectName(cwd) {
   return parts.at(-1) ?? "unknown";
 }
 
+function pad(value) {
+  return String(value).padStart(2, "0");
+}
+
+// 실행 환경의 로컬 시간 기준 "YYYY-MM-DD HH:mm:ss"
+function formatDateTime(date) {
+  const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  const time = `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  return `${day} ${time}`;
+}
+
+function formatMessage(project, status) {
+  return [`프로젝트명: ${project}`, `상태: ${status}`, `작업일시: ${formatDateTime(new Date())}`].join("\n");
+}
+
 function buildMessage(kind, event) {
   const project = projectName(event.cwd);
   if (kind === "permission") {
-    const detail = event.message ? `: ${event.message}` : "";
-    return `🔐 *권한 요청* — ${project}${detail}`;
+    const detail = event.message ? ` (${event.message})` : "";
+    return formatMessage(project, `권한 요청${detail}`);
   }
   if (kind === "done") {
-    return `✅ *작업 완료* — ${project}`;
+    return formatMessage(project, "작업 완료");
   }
   return null;
 }

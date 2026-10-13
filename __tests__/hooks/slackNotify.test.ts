@@ -7,6 +7,8 @@ import { afterEach, describe, expect, it } from "vitest"
 
 const SCRIPT = path.resolve(__dirname, "../../.claude/hooks/slack-notify.js")
 
+const DATETIME_LINE = /^작업일시: \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/
+
 interface RunResult {
   code: number | null
   stderr: string
@@ -61,20 +63,24 @@ describe("slack-notify 훅", () => {
     expect(result.code).toBe(0)
     expect(bodies).toHaveLength(1)
     const { text } = JSON.parse(bodies[0])
-    expect(text).toContain("권한 요청")
-    expect(text).toContain("my-starterkits")
-    expect(text).toContain("Claude needs your permission to use Bash")
+    const lines = text.split("\n")
+    expect(lines[0]).toBe("프로젝트명: my-starterkits")
+    expect(lines[1]).toBe("상태: 권한 요청 (Claude needs your permission to use Bash)")
+    expect(lines[2]).toMatch(DATETIME_LINE)
   })
 
-  it("done: 작업 완료 메시지를 전송한다", async () => {
+  it("done: 프로젝트명/상태/작업일시 형식으로 작업 완료 메시지를 전송한다", async () => {
     const { url, bodies } = await startWebhook()
 
     const result = await runHook("done", { cwd: "/home/me/my-starterkits" }, { SLACK_WEBHOOK_URL: url })
 
     expect(result.code).toBe(0)
     const { text } = JSON.parse(bodies[0])
-    expect(text).toContain("작업 완료")
-    expect(text).toContain("my-starterkits")
+    const lines = text.split("\n")
+    expect(lines).toHaveLength(3)
+    expect(lines[0]).toBe("프로젝트명: my-starterkits")
+    expect(lines[1]).toBe("상태: 작업 완료")
+    expect(lines[2]).toMatch(DATETIME_LINE)
   })
 
   it("SLACK_WEBHOOK_URL이 없으면 안내를 stderr에 남기고 exit 1로 종료한다", async () => {
