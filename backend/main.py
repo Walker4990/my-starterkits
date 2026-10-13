@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.middleware.request_id import RequestIdMiddleware
+from backend.middleware.error_handlers import register_error_handlers
 from backend.database.supabase import settings
 from backend.routers import health, users, items
 
@@ -18,7 +19,11 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID"],
 )
+
+# 에러 응답 형식 통일 ({message, code, requestId, statusCode})
+register_error_handlers(app)
 
 # 라우터 등록
 app.include_router(health.router)
