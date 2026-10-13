@@ -45,15 +45,15 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center px-4 py-16">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>로그인</CardTitle>
-          <CardDescription>계정에 로그인하세요.</CardDescription>
+    <div className="flex flex-1 items-center justify-center bg-gradient-to-b from-muted/50 to-background px-4 py-10 sm:py-16">
+      <Card className="w-full max-w-md shadow-lg [--card-spacing:--spacing(6)] sm:[--card-spacing:--spacing(8)]">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold tracking-tight">로그인</CardTitle>
+          <CardDescription>계정 정보를 입력하고 로그인하세요.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
               <FormField
                 control={form.control}
                 name="email"
@@ -61,7 +61,13 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>이메일</FormLabel>
                     <FormControl>
-                      <Input placeholder="example@email.com" type="email" {...field} />
+                      <Input
+                        placeholder="example@email.com"
+                        type="email"
+                        autoComplete="email"
+                        className="h-10"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -74,20 +80,25 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>비밀번호</FormLabel>
                     <FormControl>
-                      <Input type="password" {...field} />
+                      <Input
+                        type="password"
+                        autoComplete="current-password"
+                        className="h-10"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+              <Button type="submit" className="h-10 w-full" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? "로그인 중..." : "로그인"}
               </Button>
             </form>
           </Form>
-          <p className="mt-4 text-center text-sm text-muted-foreground">
+          <p className="mt-6 text-center text-sm text-muted-foreground">
             계정이 없으신가요?{" "}
-            <Link href="/register" className="text-foreground underline underline-offset-4">
+            <Link href="/register" className="font-medium text-foreground underline-offset-4 hover:underline">
               회원가입
             </Link>
           </p>
