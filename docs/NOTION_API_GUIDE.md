@@ -5,7 +5,7 @@
 | 대상 프로젝트 | invoice-web (견적서 웹 뷰어, Next.js 16 App Router) |
 | 기준 | Notion API 버전 `2026-03-11`, `@notionhq/client` (data source 지원 버전) |
 | 작성일 | 2026-10-14 |
-| 근거 | Context7 (`/websites/developers_notion_reference`, `/websites/developers_notion_guides`, `/makenotion/notion-sdk-js`), `docs/PRD.md` 6, 9~12절 |
+| 근거 | Context7 (`/websites/developers_notion_reference`, `/websites/developers_notion_guides`, `/makenotion/notion-sdk-js`), `docs/PRD.md`(기능·페이지), 부록 A(구현 제약) |
 | 성격 | 읽기 전용 분석 문서. 코드는 스케치이며 실제 적용은 별도 승인 후 진행 |
 
 표기 규칙: **확인 필요**는 이번 조사에서 공식 문서로 직접 확인하지 못한 항목이다.
@@ -58,8 +58,8 @@ export function createNotionClient(apiKey: string): Client {
   return new Client({
     auth: apiKey,
     notionVersion: NOTION_VERSION,
-    timeoutMs: 8_000, // 기본 60초는 FR-03(5초 목표)와 맞지 않아 단축
-    retry: { maxRetries: 3, initialRetryDelayMs: 1_000, maxRetryDelayMs: 30_000 },
+    timeoutMs: 2_500, // 기본 60초는 PDF 5초 목표(부록 A.3)와 맞지 않아 단축
+    retry: { maxRetries: 1, initialRetryDelayMs: 500, maxRetryDelayMs: 1_000 },
   })
 }
 ```
@@ -72,7 +72,7 @@ const db = await notion.databases.retrieve({ database_id: process.env.QUOTES_DAT
 
 ### 1.3 이 프로젝트 적용안
 
-- `NOTION_QUOTES_DATA_SOURCE_ID`, `NOTION_ITEMS_DATA_SOURCE_ID`에는 **data source ID**를 넣는다. PRD 10절 환경변수 이름과 일치한다.
+- `NOTION_QUOTES_DATA_SOURCE_ID`, `NOTION_ITEMS_DATA_SOURCE_ID`에는 **data source ID**를 넣는다. 부록 A.5 환경변수 이름과 일치한다.
 - `NOTION_API_KEY`는 서버 전용이다. `NEXT_PUBLIC_` 접두사를 쓰지 않는다. SDK는 브라우저에서 토큰 사용을 막기도 한다 (`dangerouslyAllowBrowser` 옵션이 별도로 있다).
 
 ### 1.4 주의사항 / 확인 필요
@@ -147,8 +147,8 @@ await notion.pages.update({
 
 ### 2.3 이 프로젝트 적용안
 
-- 이 앱은 **읽기 전용**이다. `pages.create`와 `pages.update`는 토큰 발급 스크립트(오픈 이슈 O-1의 (a)안)에서만 쓸 수 있다.
-- 필터의 속성 이름은 PRD 14절 위험 대응대로 **상수 한 곳**(`lib/notion/mappers.ts` 또는 `types/notion.ts`)에 정의한다.
+- 이 앱은 **읽기 전용**이다. `pages.create`와 `pages.update`는 토큰 발급 스크립트(부록 A.8의 토큰 발급 방식 (a)안)에서만 쓸 수 있다.
+- 필터의 속성 이름은 속성명 변경 위험(스키마 변경 시 조회 실패)에 대비해 **상수 한 곳**(`lib/notion/mappers.ts` 또는 `types/notion.ts`)에 정의한다.
 - 이름 기반 필터는 관리자가 Notion에서 속성명을 바꾸면 깨진다. 이때는 400 `validation_error`로 실패하므로 서비스 계층에서 `NOTION_SCHEMA_MISMATCH`와 함께 구분해 로그를 남긴다.
 
 ### 2.4 주의사항 / 확인 필요
@@ -281,15 +281,15 @@ export function readRollupNumber(page: PageObjectResponse, name: string): number
 
 ### 3.3 이 프로젝트 적용안
 
-- 위 헬퍼는 PRD 10절의 `lib/notion/mappers.ts`에 둔다. repository는 헬퍼를 호출해 도메인 타입(`Quote`, `QuoteItem`)을 만들고, 오류는 삼키지 않고 `NOTION_SCHEMA_MISMATCH`로 던진다.
+- 위 헬퍼는 부록 A.5의 `lib/notion/mappers.ts`에 둔다. repository는 헬퍼를 호출해 도메인 타입(`Quote`, `QuoteItem`)을 만들고, 오류는 삼키지 않고 `NOTION_SCHEMA_MISMATCH`로 던진다.
 - 세율은 Number(percent) 속성이다. 응답 값은 비율(예: 10%는 `0.1`)로 오는 것이 일반적이다. 도메인의 `taxRate: 0.1`과 맞는지 **확인 필요** (샘플 데이터로 검증).
-- PRD의 `상태`가 Status인지 Select인지는 미정이므로 `readOptionName`처럼 둘 다 받는 헬퍼가 안전하다. 필터는 둘 중 하나로 확정해야 한다.
+- 부록 A.1의 `상태`가 Status인지 Select인지는 미정이므로 `readOptionName`처럼 둘 다 받는 헬퍼가 안전하다. 필터는 둘 중 하나로 확정해야 한다.
 
 ### 3.4 주의사항 / 확인 필요
 
 - `requireProperty` 안의 `value as PropertyOfType<T>`는 `type` 검사 직후이므로 안전하지만, `any`는 아니어도 단언이다. 사용 범위를 이 함수 안으로 제한한다.
 - SDK 타입의 정확한 유니온 이름과 `PageObjectResponse["properties"]` 구조는 SDK 버전에 따라 다를 수 있다. 설치 후 `npx tsc --noEmit`로 확인한다.
-- 금액 계산은 PRD FR-02대로 service 계층에서 한다. mapper에서 `amount`를 계산하지 않는다.
+- 금액 계산은 PRD F002(부록 A.6)대로 service 계층에서 한다. mapper에서 `amount`를 계산하지 않는다.
 
 ---
 
@@ -429,41 +429,41 @@ function mapStatus(code: string): number {
 
 ### 4.3 이 프로젝트 적용안
 
-- `lib/notion/client.ts`에 SDK 인스턴스 생성(SDK 내장 재시도로 429/529 처리)과 `withRetry`(5xx, 타임아웃)를 둔다. 이렇게 하면 PRD FR-05의 "제한된 횟수만 재시도(지수 백오프)"를 충족한다.
-- `NotionRequestError`는 PRD 9절 `ApiError`(`message`, `code`, `requestId`, `statusCode`)와 같은 필드를 가지므로 service에서 `ApiError`로 매핑하기 쉽다.
+- `lib/notion/client.ts`에 SDK 인스턴스 생성(SDK 내장 재시도로 429/529 처리)과 `withRetry`(5xx, 타임아웃)를 둔다. 이렇게 하면 F005의 "제한된 횟수만 재시도"를 충족한다.
+- `NotionRequestError`는 `types/common.ts`의 `ApiError`(`message`, `code`, `requestId`, `statusCode`)와 같은 필드를 가지므로 service에서 `ApiError`로 매핑하기 쉽다.
 - 에러 코드별 사용자 노출 정책
   - `object_not_found`는 두 가지 원인이 섞인다. Integration 미공유(설정 오류)는 서버 로그에 별도로 남기고, 사용자에게는 일반 오류와 `requestId`를 보여 준다.
   - `unauthorized`는 키 오류이므로 운영 알림 대상이다.
 
 ### 4.4 주의사항 / 확인 필요
 
-- SDK는 429에서 `Retry-After`를 존중하지만, `maxRetryDelayMs: 60000` 설정 시 서버리스 함수가 최대 60초 대기할 수 있다. PRD의 PDF 응답 5초 목표와 충돌하므로 `maxRetryDelayMs`를 낮추고(예: 5000), 대기가 초과되면 오류 화면 + `requestId`로 처리하는 방침을 정해야 한다. 이 경우 `Retry-After`가 더 길면 SDK가 그 값을 쓰는지 상한과 어떻게 상호작용하는지는 **확인 필요**.
+- SDK는 429에서 `Retry-After`를 존중하지만, `maxRetryDelayMs: 60000` 설정 시 서버리스 함수가 최대 60초 대기할 수 있다. PDF 응답 5초 목표(부록 A.3)와 충돌하므로 `maxRetryDelayMs`를 낮추고(예: 1000), 대기가 초과되면 오류 화면 + `requestId`로 처리하는 방침을 정해야 한다. 이 경우 `Retry-After`가 더 길면 SDK가 그 값을 쓰는지 상한과 어떻게 상호작용하는지는 **확인 필요**.
 - `isNotionClientError`의 `error.code`가 `NotionErrorCode` 유니온이므로 `Set<string>`에 `has`할 때 타입 호환을 컴파일로 확인한다.
 - `collectPaginatedAPI`가 `dataSources.query`를 `this` 바인딩 없이 받아도 동작하는지(화살표 프로퍼티인지)는 공식 예시가 `blocks.children.list`로만 나와 있어 **확인 필요**. 테스트 mock 환경에서는 `vi.fn()`이라 문제없다. 확인 전에는 수동 `has_more` 루프(5.2절 `queryAllPages`)가 더 안전하다.
 - `page_size` 최대값 100은 Notion 페이지네이션 문서의 일반 규칙이다. 이번 조회에서는 직접 확인하지 못했으므로 **확인 필요**.
 
 ---
 
-## 5. PRD 데이터 모델 적용안
+## 5. 데이터 모델 적용안
 
 ### 5.1 개념 요약: 호출 설계
 
-PRD 6절 구조(견적서 data source ↔ 품목 data source, Relation)에서 견적서 1건 조회는 아래 순서다.
+부록 A.1 구조(견적서 data source ↔ 품목 data source, Relation)에서 견적서 1건 조회는 아래 순서다.
 
-1. 견적서 data source를 `공유 토큰` rich_text `equals` 필터로 쿼리한다. `page_size: 2`로 0, 1, 2건을 구분한다. 2건이면 FR-01대로 에러 처리와 로그를 남긴다.
+1. 견적서 data source를 `공유 토큰` rich_text `equals` 필터로 쿼리한다. `page_size: 2`로 0, 1, 2건을 구분한다. 2건이면 F001대로 에러 처리와 로그를 남긴다.
 2. 찾은 견적서 page ID로 **품목 data source를 relation 필터(`견적` contains quotePageId)로 1회 쿼리**하고, `순서`로 정렬한다.
 3. 도메인 타입으로 변환해 service에 반환한다.
 
 **N+1을 피하는 방법**
 
 - 나쁜 방법: 견적서의 `품목` relation에서 ID를 꺼내 품목마다 `pages.retrieve`를 부르면 품목 수만큼 호출한다. 게다가 relation은 25건을 넘으면 `has_more`가 되어 잘린다.
-- 좋은 방법: 품목 data source를 `견적` relation으로 역방향 필터링해 한 번에 가져온다(품목 100건 이하이면 1회). 호출 수는 2회로 고정된다(PRD 9절 "견적 1회 + 품목 1회"와 일치).
+- 좋은 방법: 품목 data source를 `견적` relation으로 역방향 필터링해 한 번에 가져온다(품목 100건 이하이면 1회). 호출 수는 2회로 고정된다(부록 A.3 "견적 1회 + 품목 1회"와 일치).
 - 견적서 쪽 `품목` relation 속성은 `filter_properties`에서 제외해 응답을 줄인다.
-- 품목 쪽 `견적` relation이 있어야 역방향 필터가 가능하다. PRD 6절 품목 스키마에 이미 `견적` Relation이 있다.
+- 품목 쪽 `견적` relation이 있어야 역방향 필터가 가능하다. 부록 A.1 품목 스키마에 이미 `견적` Relation이 있다.
 
 **호출 수와 캐시**
 
-- 평균 3회/초 한도에서 캐시 없이는 접속당 2회를 쓰므로 캐시는 필수다(PRD 9절과 동일).
+- 평균 3회/초 한도에서 캐시 없이는 접속당 2회를 쓰므로 캐시는 필수다(부록 A.3과 동일).
 - 공개 링크라 임의 토큰 요청도 Notion 호출을 소비한다. 캐시 키가 토큰이므로, 존재하지 않는 토큰에 대한 반복 요청을 막는 방법(부정 캐시, 토큰 형식 사전 검증)을 검토한다. 토큰 형식(32자 hex 이상)이 틀리면 Notion을 호출하지 않고 바로 404를 반환하는 것이 가장 저렴하다.
 
 ### 5.2 코드 예시
@@ -631,7 +631,7 @@ function readRichTextRequired(page: PageObjectResponse, name: string): string {
 }
 ```
 
-위 스케치의 반환 타입은 PRD 11절의 `Quote`와 `QuoteItem.amount`(service에서 계산) 사이를 맞추려고 `Omit`을 썼다. 실제 구현 때는 `types/quote.ts`에 repository 반환 전용 타입(예: `QuoteRecord`)을 두는 것이 읽기 쉽다. `QUOTE_PROPS` 필터링 부분(`filter_properties`)은 장황해서 상수 배열로 분리하는 것을 권한다.
+위 스케치의 반환 타입은 부록 A.5의 `Quote`와 `QuoteItem.amount`(service에서 계산) 사이를 맞추려고 `Omit`을 썼다. 실제 구현 때는 `types/quote.ts`에 repository 반환 전용 타입(예: `QuoteRecord`)을 두는 것이 읽기 쉽다. `QUOTE_PROPS` 필터링 부분(`filter_properties`)은 장황해서 상수 배열로 분리하는 것을 권한다.
 
 ### 5.3 vitest repository 테스트 예시
 
@@ -773,7 +773,7 @@ describe("quoteRepository.findQuoteByToken", () => {
 | `repositories/quoteRepository.ts` | 쿼리 2회, 중복 토큰 감지, 도메인 변환 (상태·만료 판정은 하지 않음) |
 | `services/quoteService.ts` | 상태·만료 판정, 금액 계산, `NotionRequestError`/`DuplicateTokenError`를 `ApiError`로 매핑 |
 
-- 상태 `비공개`와 만료 판정을 service에서 하므로 repository는 `공개` 필터를 걸지 않는다. 이 방침은 PRD 10절 계층별 책임표와 일치한다.
+- 상태 `비공개`와 만료 판정을 service에서 하므로 repository는 `공개` 필터를 걸지 않는다. 이 방침은 부록 A.5 계층 구조와 일치한다.
 - 토큰 형식 검증(길이, 문자 집합)은 service 진입부에서 하고, 형식이 틀리면 Notion을 호출하지 않는다.
 
 ### 5.5 주의사항 / 확인 필요
@@ -783,12 +783,14 @@ describe("quoteRepository.findQuoteByToken", () => {
 - 품목 relation 필터는 품목 data source 쪽에 `견적` relation 속성이 있어야 한다. 단방향 relation으로 만들었다면 견적서 쪽 `품목`이 없을 수 있으므로, Notion에서 **양방향(dual) relation**으로 구성하는 것을 권한다.
 - 견적서와 품목 database **모두** Integration에 공유해야 한다. 품목 쪽만 공유가 빠지면 relation 필터가 비거나 404가 난다.
 - 서비스 계층 중복 토큰 처리: 2건이 감지돼도 사용자에게는 일반 오류와 `requestId`를 보여 주고, 로그에는 토큰의 앞 일부만 남긴다(토큰 전체 로그 금지 권장).
-- Next.js 16 `cacheComponents` 환경에서 SDK 호출을 캐시하는 방법(`use cache`, 캐시 태그 등)은 PRD 9절대로 **구현 전 Next.js 공식 문서 확인 필요**. SDK가 사용하는 `fetch` 구현이 Next의 fetch 캐시 대상인지도 확인하지 못했다.
+- Next.js 16 `cacheComponents` 환경에서 SDK 호출을 캐시하는 방법(`use cache`, 캐시 태그 등)은 부록 A.3대로 **구현 전 Next.js 공식 문서 확인 필요**. SDK가 사용하는 `fetch` 구현이 Next의 fetch 캐시 대상인지도 확인하지 못했다.
 - 변경 통지를 폴링 대신 webhook으로 받는 방법이 Notion 문서에 언급되어 있다(query 성능 팁 항목). 이번 MVP 범위 밖이며, 즉시 반영이 필요해지면 `revalidateTag` 연동과 함께 검토한다. 세부는 **확인 필요**.
 
 ---
 
-## 6. PRD 6절 "Notion 연동 사실" 검증
+## 6. (이력) 옛 PRD v0.2 "Notion 연동 사실" 검증
+
+> 새 PRD에는 해당 절이 없다. 검증 근거 기록용으로만 남긴다.
 
 | # | PRD 주장 | 판정 | 근거 |
 |---|----------|------|------|
@@ -803,8 +805,8 @@ describe("quoteRepository.findQuoteByToken", () => {
 
 **PRD 다른 곳에서 발견한 사실과의 차이**
 
-- **재시도 책임 (FR-05, 10절)**: PRD는 "429/5xx/타임아웃 시 지수 백오프 재시도"를 `lib/notion`이 하는 것으로 둔다. SDK에 이미 내장 재시도가 있다(기본 2회, 429/529는 모든 메서드, 500/503은 GET/DELETE만). `dataSources.query`는 POST라 **5xx와 타임아웃은 SDK가 재시도하지 않으므로** 본문 4절의 `withRetry`가 필요하다. 반대로 429/529를 `lib/notion`이 직접 또 재시도하면 중복이다.
-- **타임아웃**: SDK 기본 `timeoutMs`는 60초다. FR-03의 5초 목표를 지키려면 명시적으로 줄여야 한다.
+- **재시도 책임 (옛 PRD FR-05)**: PRD는 "429/5xx/타임아웃 시 지수 백오프 재시도"를 `lib/notion`이 하는 것으로 둔다. SDK에 이미 내장 재시도가 있다(기본 2회, 429/529는 모든 메서드, 500/503은 GET/DELETE만). `dataSources.query`는 POST라 **5xx와 타임아웃은 SDK가 재시도하지 않으므로** 본문 4절의 `withRetry`가 필요하다. 반대로 429/529를 `lib/notion`이 직접 또 재시도하면 중복이다.
+- **타임아웃**: SDK 기본 `timeoutMs`는 60초다. PDF 5초 목표를 지키려면 명시적으로 줄여야 한다.
 - **`isFullPageOrDataSource` (11절)**: SDK에 존재하는 가드다. 다만 이 가드는 `PageObjectResponse | DataSourceObjectResponse`로 좁히므로, 속성에 접근하려면 `object === "page"` 확인이 추가로 필요하다(5.2절 `isPageWithProperties`).
 - **호출 수 "견적 1회 + 품목 1회"**: 품목이 100건을 초과하면 `has_more` 순회로 호출이 늘어난다(100건은 일반 규칙, **확인 필요**). 견적서의 `품목` relation 값을 쓰는 경로는 25건 초과 시 잘리므로, 역방향 relation 필터 방식을 쓴다.
 - **환경변수 이름**: PRD의 `NOTION_*_DATA_SOURCE_ID`는 data source ID라는 의미로 올바르다. database ID와 혼동하지 않도록 `.env.example` 주석에 명시하는 것을 권한다.
@@ -836,10 +838,92 @@ describe("quoteRepository.findQuoteByToken", () => {
 
 **프로젝트 내 근거**
 
-- `docs/PRD.md` 6, 9, 10, 11, 12절
+- `docs/PRD.md`, 이 문서 부록 A
 - `types/common.ts` (`ApiError` 형태)
 - `__tests__/repositories/itemRepository.test.ts` (repository 테스트 패턴)
 
 **미확인 항목 요약 (WebFetch로 직접 확인하지 않음)**
 
 - SDK 기본 `notionVersion` 값, `collectPaginatedAPI`의 `this` 바인딩 동작, `page_size` 최대 100, `rich_text equals` 대소문자 구분, 퍼센트 Number 속성의 응답 값 형태, Next.js 16 캐시와 SDK `fetch`의 관계
+
+---
+
+## 부록 A. 구현 제약 (PRD 정비로 PRD에서 이관)
+
+PRD는 `prd-generator` 기준(기능·페이지·메뉴 정합성 중심)으로 재정립되어 아래 구현 제약을 담지 않는다. 구현 시 이 절을 따른다.
+
+### A.1 Notion 속성 (타입)
+
+| 데이터 소스 | 속성명 | Notion 타입 | 필수 | 비고 |
+|-------------|--------|-------------|------|------|
+| 견적서 | 견적번호 | Title | O | 예: `Q-2026-001` |
+| | 클라이언트명 | Rich text | O | 화면·파일명에 사용 |
+| | 발행일 | Date | O | |
+| | 유효기간 | Date | O | 결정: 이 날짜 00:00(KST)부터 만료. 서버 UTC와 무관하게 KST로 비교 |
+| | 세율 | Number (percent) | O | |
+| | 비고 | Rich text | | 결제 조건 등 |
+| | 상태 | Status/Select | O | `작성중`, `공개`, `비공개` 중 `공개`만 노출 |
+| | 공유 토큰 | Rich text | O | 추측 불가 랜덤 문자열 |
+| | 품목 | Relation → 견적 품목 | O | 양방향 구성 |
+| 견적 품목 | 품명 | Title | O | |
+| | 견적 | Relation → 견적서 | O | 역방향 필터 조회에 사용 |
+| | 수량, 단가 | Number | O | 단가는 원 단위 |
+| | 설명 | Rich text | | |
+| | 순서 | Number | | 표시 순서 |
+
+품목은 하위 데이터베이스(Relation)로 둔다. 입력 오류가 적고 숫자 타입이 보장된다.
+
+### A.2 토큰·키 취급
+
+- 공유 토큰: 암호학적 난수 최소 128비트(32자 hex 이상). 순번·견적번호·이메일 기반 금지. 형식이 틀리면 Notion 호출 없이 404.
+- Notion API 키는 서버 전용 환경변수(`NEXT_PUBLIC_` 금지). 클라이언트에는 화면에 필요한 도메인 필드만 전달.
+- 링크 폐기: 상태 `비공개` 또는 유효기간 과거로 변경, 토큰 재발급.
+- 없는 링크와 공개 상태가 아닌 링크는 동일한 404로 응답해 존재 여부를 노출하지 않는다.
+- 응답에 `noindex, nofollow` 메타와 `Referrer-Policy: no-referrer` 적용.
+
+### A.3 캐싱·성능
+
+- 조회 결과를 서버 캐시하고 기본 60초마다 갱신(결정: 수정·비공개 전환 모두 최대 1분 지연). Next.js 16 `cacheComponents` API는 구현 전 공식 문서로 확인.
+- Notion 호출은 견적 1회 + 품목 1회. 캐시 없이는 접속당 2회라 비-Business 플랜(평균 초당 3회)에서 캐시 필수.
+- 목표(참고): 캐시 적중 시 본문 3초 이내, PDF 응답 5초 이내(배포 환경 측정 후 확정). 결정: SDK `timeoutMs` 2,500ms, SDK 재시도 1회(`maxRetryDelayMs` 1,000ms 이하), `withRetry` 1회. `Retry-After`가 남은 예산을 넘으면 즉시 오류 화면(`requestId` 포함)으로 보낸다.
+- 재시도 책임: 429/529는 SDK 내장 재시도, `dataSources.query`의 5xx·타임아웃만 `lib/notion`의 `withRetry`가 담당.
+
+### A.4 PDF
+
+- A4 세로, 품목이 많으면 다중 페이지와 표 헤더 반복. 한글 폰트(Noto Sans KR 등, 라이선스 확인 필요) 직접 임베딩. 웹·PDF는 같은 계산 함수 사용. 한글 파일명은 `filename*=UTF-8''` 인코딩. 라우트: `GET /quotes/[token]/pdf`.
+- 구현 방식 비교 결과 `@react-pdf/renderer` 추천 (Puppeteer는 서버리스 번들 제약, 브라우저 인쇄는 결과 불일치).
+
+### A.5 아키텍처·디렉토리
+
+```
+app/quotes/[token]/page.tsx, pdf/route.ts, not-found.tsx
+components/quote/, components/pdf/QuotePdf.tsx
+services/quoteService.ts        # 상태·만료 판정, 금액 계산, 에러 매핑
+repositories/quoteRepository.ts # Notion 쿼리, raw → 도메인 변환
+lib/notion/client.ts, mappers.ts
+types/notion.ts, types/quote.ts
+```
+
+- Controller 역할은 Page(Server Component)와 Route Handler. 서버 렌더링 구간은 `hooks/` 생략(전역 규칙의 의도적 예외, 사용자 확인 필요).
+- 환경변수: `NOTION_API_KEY`, `NOTION_QUOTES_DATA_SOURCE_ID`, `NOTION_ITEMS_DATA_SOURCE_ID`, `QUOTE_REVALIDATE_SECONDS` (모두 서버 전용).
+- 스타터킷의 Supabase, FastAPI, TanStack Query, Zustand, `lib/api/client.ts`는 이 MVP에서 사용하지 않는다.
+
+### A.6 금액 규칙
+
+- 공급가액 = Σ(수량×단가), 세액 = 공급가액×세율, 합계 = 공급가액+세액. 세액은 원 단위 반올림, 면세는 세율 0% (추천안, 사용자 확인 필요).
+
+### A.7 테스트 핵심 케이스
+
+- Service: 합계·세액·반올림, 세율 0%, 품목 0건, 유효기간 전날 23:59 유효/당일 00:00 만료(KST) 경계, 비공개, 토큰 없음, 중복 토큰 에러
+- Repository: 토큰 필터 전달, `has_more` 페이지네이션, 속성 누락 시 `NOTION_SCHEMA_MISMATCH`, 순서 정렬
+- lib/notion: 429 `Retry-After` 재시도, 최대 재시도 후 에러 전파
+- PDF Route: 헤더·파일명 인코딩, 없는 토큰 404, 만료 시 PDF 미생성
+
+### A.8 사용자 확인이 필요한 항목
+
+- [ ] `@react-pdf/renderer`, `@notionhq/client` 도입 승인
+- [ ] 공유 토큰 발급 방식 (추천: 로컬 스크립트로 생성 후 Notion에 붙여넣기)
+- [ ] 배포 대상 (PDF 시간·번들 한도와 연결)
+- [ ] 금액 반올림·부가세 규칙, PDF 한글 폰트와 라이선스
+- [ ] 스타터킷 페이지(`showcase`, `auth`, 루트) 정리 범위
+- [ ] `hooks/` 계층 생략 허용 여부

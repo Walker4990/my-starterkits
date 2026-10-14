@@ -17,7 +17,7 @@ model: sonnet
 
 ## 프로젝트 맥락
 
-- 요구사항은 `docs/PRD.md`를 먼저 읽는다 (특히 6절 데이터 모델, 9절 비기능, 10절 아키텍처, 11절 타입 설계).
+- 요구사항은 `docs/PRD.md`(기능·페이지)와 `docs/NOTION_API_GUIDE.md` 부록 A(속성·캐싱·아키텍처·타입 제약)를 먼저 읽는다.
 - 레이어 구조: Page/Route Handler → `services/` → `repositories/` → `lib/notion/`
   - Notion raw 타입은 repository 안에서만 사용하고, 상위 계층에는 camelCase 도메인 타입만 노출한다.
 - `any` 금지. SDK 응답은 `isFullPage` 등 타입 가드와 `unknown`으로 좁힌다.
